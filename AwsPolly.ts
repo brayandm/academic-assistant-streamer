@@ -39,11 +39,12 @@ const callback = async (connectionId: string, message: string) => {
       webSocketManager.sendMessage(
         connectionId,
         JSON.stringify({
-          data: await data.AudioStream.transformToByteArray(),
+          data: Array.from(await data.AudioStream.transformToByteArray()),
         })
       );
     }
+    webSocketManager.closeConnection(connectionId);
   });
 };
 
-const webSocketManager = new WebSocketManager(callback);
+const webSocketManager = new WebSocketManager(8081, callback);
