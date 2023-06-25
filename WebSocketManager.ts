@@ -6,30 +6,23 @@ class WebSocketManager {
   server: WebSocket.Server;
   connections: { [key: string]: WebSocket } = {};
 
-  constructor() {
+  constructor(callback: (connectionId: string, message: string) => void) {
     this.server = new WebSocket.Server({ port: 8080 });
 
     dotenv.config();
 
     this.server.on("connection", (connection) => {
-      const userId = uuidv4();
+      const uuid = uuidv4();
 
-      this.storeConnection(userId, connection);
+      this.storeConnection(uuid, connection);
 
       connection.on("close", () => {
-        this.deleteConnection(userId);
+        this.deleteConnection(uuid);
       });
 
-      // connection.on("message", (message) => {
-      //   console.log("Message received:", message);
-
-      //   connection.binaryType = "arraybuffer";
-
-      //   const arrayBuffer = new ArrayBuffer(123); // Tu ArrayBuffer de ejemplo
-      //   const blob = new Blob([arrayBuffer]);
-
-      //   connection.send(arrayBuffer);
-      // });
+      connection.on("message", (message) => {
+        callback(uuid, message.toString());
+      });
     });
 
     console.log("Server running on port 8080");
@@ -49,6 +42,12 @@ class WebSocketManager {
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
     );
+  };
+
+  sendMessage = (uuid: string, message: string) => {
+    if (this.connections[uuid]) {
+      this.connections[uuid].send(message);
+    }
   };
 }
 
