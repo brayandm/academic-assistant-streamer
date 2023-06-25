@@ -5,10 +5,16 @@ import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 
 dotenv.config();
 
+type Input = {
+  text: string;
+  languageCode: string;
+  voiceId: string;
+};
+
 const callback = async (connectionId: string, message: string) => {
   console.log("Message received:", JSON.parse(message));
 
-  const input = JSON.parse(message);
+  const input = JSON.parse(message) as Input;
 
   const awsCredentials: AwsCredentialIdentity = {
     accessKeyId: process.env.AWS_ACCESS_KEY || "",
@@ -22,9 +28,9 @@ const callback = async (connectionId: string, message: string) => {
   const params = {
     OutputFormat: "mp3",
     Engine: "neural",
-    LanguageCode: "es-ES",
+    LanguageCode: input.languageCode,
     Text: `<speak>${input.text}</speak>`,
-    VoiceId: "Lucia",
+    VoiceId: input.voiceId,
     TextType: "ssml",
   };
   polly.send(new SynthesizeSpeechCommand(params), async (error, data) => {
