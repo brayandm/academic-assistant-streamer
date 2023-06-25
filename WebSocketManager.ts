@@ -6,8 +6,11 @@ class WebSocketManager {
   server: WebSocket.Server;
   connections: { [key: string]: WebSocket } = {};
 
-  constructor(callback: (connectionId: string, message: string) => void) {
-    this.server = new WebSocket.Server({ port: 8080 });
+  constructor(
+    port: number,
+    callback: (connectionId: string, message: string) => void
+  ) {
+    this.server = new WebSocket.Server({ port: port });
 
     dotenv.config();
 
