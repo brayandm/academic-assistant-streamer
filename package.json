@@ -19,8 +19,9 @@
   },
   "homepage": "https://github.com/brayandm/web-sockets#readme",
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.359.0",
+    "@aws-sdk/types": "^3.357.0",
     "dotenv": "^16.3.1",
-    "eslint": "^8.40.0",
     "http": "^0.0.1-security",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
@@ -30,6 +31,9 @@
   "devDependencies": {
     "@types/uuid": "^9.0.2",
     "@types/ws": "^8.5.5",
+    "@typescript-eslint/eslint-plugin": "^5.60.0",
+    "@typescript-eslint/parser": "^5.60.0",
+    "eslint": "^8.43.0",
     "husky": "^8.0.3",
     "prettier": "2.8.8"
   }
