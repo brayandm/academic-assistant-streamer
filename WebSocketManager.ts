@@ -8,7 +8,15 @@ class WebSocketManager {
 
   constructor(
     port: number,
-    callback: (connectionId: string, message: string) => void
+    callback: (connectionId: string, message: string) => void = () => {
+      return;
+    },
+    asyncCallback: (
+      connectionId: string,
+      messages: AsyncGenerator<string>
+    ) => void = () => {
+      return;
+    }
   ) {
     this.server = new WebSocket.Server({ port: port });
 
@@ -17,14 +25,37 @@ class WebSocketManager {
     this.server.on("connection", (connection) => {
       const uuid = uuidv4();
 
+      const messages: string[] = [];
+
       this.storeConnection(uuid, connection);
 
       connection.on("close", () => {
         this.deleteConnection(uuid);
       });
 
+      let promiseResolver: (value: unknown) => void | null = null;
+
+      async function* getMessages(): AsyncGenerator<string> {
+        while (true) {
+          if (messages.length > 0) {
+            yield messages.shift();
+          } else {
+            await new Promise((resolve) => {
+              promiseResolver = resolve;
+            });
+          }
+        }
+      }
+
+      asyncCallback(uuid, getMessages());
+
       connection.on("message", (message) => {
+        messages.push(message.toString());
         callback(uuid, message.toString());
+        if (promiseResolver) {
+          promiseResolver(null);
+          promiseResolver = null;
+        }
       });
     });
 
