@@ -28,6 +28,12 @@ class WebSocketManager {
     console.log("Server running on port 8080");
   }
 
+  closeConnection = (uuid: string) => {
+    if (this.connections[uuid]) {
+      this.connections[uuid].close(1000, "Closing connection");
+    }
+  };
+
   storeConnection = (uuid: string, connection: WebSocket) => {
     console.log(`Received a new connection (ID: ` + uuid + `)`);
     this.connections[uuid] = connection;

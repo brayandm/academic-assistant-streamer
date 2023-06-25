@@ -7,7 +7,8 @@ const ws = new WebSocket("ws://127.0.0.1:8080/", {
 ws.on("error", console.error);
 
 ws.on("open", function open() {
-  ws.send("something");
+  const data = [{ role: "user", content: "Cual es la capital de Cuba?" }];
+  ws.send(JSON.stringify(data));
 });
 
 ws.on("message", function message(data) {
