@@ -64,8 +64,8 @@ const asyncCallback = async (
 
   let timeoutId: NodeJS.Timeout | undefined;
 
-  const TIME_OUT = 1000;
-  const TIME_TO_SLEEP = 3000;
+  const TIME_OUT = 3000;
+  const TIME_TO_SLEEP = 5000;
   const SAMPLE_RATE = 44100;
 
   timeoutId = setTimeout(() => {
@@ -79,7 +79,8 @@ const asyncCallback = async (
     AudioStream: getStream(),
   });
 
-  const data = await transcribeClient?.send(command);
+  console.log("Sending data to AWS Transcribe... at time", new Date());
+  const data = await transcribeClient.send(command);
 
   for await (const event of data?.TranscriptResultStream || []) {
     for (const result of event.TranscriptEvent?.Transcript?.Results || []) {
@@ -109,6 +110,8 @@ const asyncCallback = async (
 
   function onTimeout(isAsleep: boolean) {
     transcribeClient.destroy();
+
+    console.log("Closing connection... at time", new Date());
 
     if (isAsleep) {
       webSocketManager.sendMessage(
