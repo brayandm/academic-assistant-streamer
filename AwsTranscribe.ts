@@ -127,6 +127,8 @@ const asyncCallback = async (
         })
       );
     }
+
+    webSocketManager.closeConnection(connectionId);
   }
 };
 
