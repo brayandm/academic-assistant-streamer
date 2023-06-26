@@ -23,14 +23,14 @@ class WebSocketManager {
     dotenv.config();
 
     this.server.on("connection", (connection) => {
-      const uuid = uuidv4();
+      const connectionId = uuidv4();
 
       const messages: string[] = [];
 
-      this.storeConnection(uuid, connection);
+      this.storeConnection(connectionId, connection);
 
       connection.on("close", () => {
-        this.deleteConnection(uuid);
+        this.deleteConnection(connectionId);
       });
 
       let promiseResolver: (value: unknown) => void | null = null;
@@ -47,11 +47,11 @@ class WebSocketManager {
         }
       }
 
-      asyncCallback(uuid, getMessages());
+      asyncCallback(connectionId, getMessages());
 
       connection.on("message", (message) => {
         messages.push(message.toString());
-        callback(uuid, message.toString());
+        callback(connectionId, message.toString());
         if (promiseResolver) {
           promiseResolver(null);
           promiseResolver = null;
@@ -62,31 +62,31 @@ class WebSocketManager {
     console.log(`Server running on port ${port}`);
   }
 
-  closeConnection = (uuid: string) => {
-    if (this.connections[uuid]) {
-      this.connections[uuid].close(1000, "Closing connection");
+  closeConnection = (connectionId: string) => {
+    if (this.connections[connectionId]) {
+      this.connections[connectionId].close(1000, "Closing connection");
     }
   };
 
-  storeConnection = (uuid: string, connection: WebSocket) => {
-    console.log(`Received a new connection (ID: ` + uuid + `)`);
-    this.connections[uuid] = connection;
+  storeConnection = (connectionId: string, connection: WebSocket) => {
+    console.log(`Received a new connection (ID: ` + connectionId + `)`);
+    this.connections[connectionId] = connection;
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
     );
   };
 
-  deleteConnection = (uuid: string) => {
-    console.log(`Connection closed (ID: ` + uuid + `)`);
-    delete this.connections[uuid];
+  deleteConnection = (connectionId: string) => {
+    console.log(`Connection closed (ID: ` + connectionId + `)`);
+    delete this.connections[connectionId];
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
     );
   };
 
-  sendMessage = (uuid: string, message: string) => {
-    if (this.connections[uuid]) {
-      this.connections[uuid].send(message);
+  sendMessage = (connectionId: string, message: string) => {
+    if (this.connections[connectionId]) {
+      this.connections[connectionId].send(message);
     }
   };
 }
