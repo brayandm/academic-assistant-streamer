@@ -77,7 +77,7 @@ class WebSocketManager {
       connection.on("message", (message) => {
         if (JSON.parse(message.toString())["setup"]) {
           this.setup[connectionId].resolve(
-            JSON.parse(message.toString())["setup"]
+            JSON.stringify(JSON.parse(message.toString())["setup"])
           );
           return;
         }
