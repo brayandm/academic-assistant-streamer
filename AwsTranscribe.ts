@@ -28,6 +28,10 @@ const asyncCallback = async (
   connectionId: string,
   messages: AsyncGenerator<string>
 ) => {
+  const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
+    language: string;
+  };
+
   canCloseConnection[connectionId] = new Promise((resolve) => {
     closeConnection[connectionId] = resolve;
   });
@@ -139,7 +143,7 @@ const asyncCallback = async (
   }, TIME_TO_SLEEP);
 
   const command = new StartStreamTranscriptionCommand({
-    LanguageCode: "es-US",
+    LanguageCode: setup.language,
     MediaEncoding: "pcm",
     MediaSampleRateHertz: SAMPLE_RATE,
     AudioStream: getStream(),
