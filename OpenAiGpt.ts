@@ -62,6 +62,6 @@ const callback = async (connectionId: string, message: string) => {
 };
 
 const webSocketManager = new WebSocketManager({
-  port: 8080,
+  port: Number(process.env.OPENAIGPT_PORT),
   callback: callback,
 });

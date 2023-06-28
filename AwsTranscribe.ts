@@ -203,7 +203,7 @@ const onCloseConnection = async (connectionId: string) => {
 };
 
 const webSocketManager = new WebSocketManager({
-  port: 8082,
+  port: Number(process.env.AWS_TRANSCRIBE_PORT),
   asyncCallback: asyncCallback,
   onCloseConnection: onCloseConnection,
 });

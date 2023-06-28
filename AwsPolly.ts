@@ -54,6 +54,6 @@ const callback = async (connectionId: string, message: string) => {
 };
 
 const webSocketManager = new WebSocketManager({
-  port: 8081,
+  port: Number(process.env.AWS_POLLY_PORT),
   callback: callback,
 });

@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  openaigpt-nodejs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    volumes:
+      - .:/app
+    ports:
+      - ${OPENAIGPT_PORT}:${OPENAIGPT_PORT}
+    networks:
+      - academic-assistant-local
+    command: npx ts-node OpenAiGpt.ts
+
+  awspolly-nodejs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    volumes:
+      - .:/app
+    ports:
+      - ${AWS_POLLY_PORT}:${AWS_POLLY_PORT}
+    networks:
+      - academic-assistant-local
+    command: npx ts-node AwsPolly.ts
+
+  awstranscribe-nodejs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    volumes:
+      - .:/app
+    ports:
+      - ${AWS_TRANSCRIBE_PORT}:${AWS_TRANSCRIBE_PORT}
+    networks:
+      - academic-assistant-local
+    command: npx ts-node AwsTranscribe.ts
+
+networks:
+  academic-assistant-local:
+    driver: bridge
+    external: true
