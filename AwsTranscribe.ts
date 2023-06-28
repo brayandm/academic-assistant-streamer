@@ -12,6 +12,10 @@ const canCloseConnection: { [key: string]: Promise<void> } = {};
 
 const closeConnection: { [key: string]: (value: unknown) => void | null } = {};
 
+const timeoutId: { [key: string]: NodeJS.Timeout | undefined } = {};
+
+const onTimeout: { [key: string]: (isAsleep: boolean) => void } = {};
+
 type InputStream = {
   AudioEvent: {
     AudioChunk: Uint8Array;
@@ -85,62 +89,7 @@ const asyncCallback = async (
     credentials: awsCredentials,
   });
 
-  let timeoutId: NodeJS.Timeout | undefined;
-
-  const TIME_OUT = 3000;
-  const TIME_TO_SLEEP = 5000;
-  const SAMPLE_RATE = 44100;
-
-  timeoutId = setTimeout(() => {
-    onTimeout(true);
-  }, TIME_TO_SLEEP);
-
-  const command = new StartStreamTranscriptionCommand({
-    LanguageCode: "es-US",
-    MediaEncoding: "pcm",
-    MediaSampleRateHertz: SAMPLE_RATE,
-    AudioStream: getStream(),
-  });
-
-  console.log("Sending data to AWS Transcribe... at time", new Date());
-  const data = await transcribeClient.send(command);
-
-  for await (const event of data?.TranscriptResultStream || []) {
-    for (const result of event.TranscriptEvent?.Transcript?.Results || []) {
-      if (result.IsPartial === false) {
-        const data = result.Alternatives
-          ? result.Alternatives[0].Items
-            ? result.Alternatives[0].Items
-            : []
-          : [];
-        const noOfResults = data.length;
-        for (let i = 0; i < noOfResults; i++) {
-          if (timeoutId) clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            onTimeout(false);
-          }, TIME_OUT);
-          webSocketManager.sendMessage(
-            connectionId,
-            JSON.stringify({
-              data: data[i].Content + " ",
-              isAsleep: false,
-            })
-          );
-        }
-      }
-    }
-  }
-
-  console.log("Destroying TranscribeClient... at time", new Date());
-
-  transcribeClient.destroy();
-
-  if (promiseResolverClientDestroy) {
-    promiseResolverClientDestroy(null);
-    promiseResolverClientDestroy = null;
-  }
-
-  async function onTimeout(isAsleep: boolean) {
+  onTimeout[connectionId] = async (isAsleep: boolean) => {
     stopTransmition();
 
     console.log("Waiting for client to be destroyed...");
@@ -175,10 +124,68 @@ const asyncCallback = async (
       closeConnection[connectionId](null);
       closeConnection[connectionId] = null;
     }
+  };
+
+  const TIME_OUT = 3000;
+  const TIME_TO_SLEEP = 5000;
+  const SAMPLE_RATE = 44100;
+
+  timeoutId[connectionId] = setTimeout(() => {
+    onTimeout[connectionId](true);
+  }, TIME_TO_SLEEP);
+
+  const command = new StartStreamTranscriptionCommand({
+    LanguageCode: "es-US",
+    MediaEncoding: "pcm",
+    MediaSampleRateHertz: SAMPLE_RATE,
+    AudioStream: getStream(),
+  });
+
+  console.log("Sending data to AWS Transcribe... at time", new Date());
+  const data = await transcribeClient.send(command);
+
+  for await (const event of data?.TranscriptResultStream || []) {
+    for (const result of event.TranscriptEvent?.Transcript?.Results || []) {
+      if (result.IsPartial === false) {
+        const data = result.Alternatives
+          ? result.Alternatives[0].Items
+            ? result.Alternatives[0].Items
+            : []
+          : [];
+        const noOfResults = data.length;
+        for (let i = 0; i < noOfResults; i++) {
+          if (timeoutId[connectionId]) clearTimeout(timeoutId[connectionId]);
+          timeoutId[connectionId] = setTimeout(() => {
+            onTimeout[connectionId](false);
+          }, TIME_OUT);
+          webSocketManager.sendMessage(
+            connectionId,
+            JSON.stringify({
+              data: data[i].Content + " ",
+              isAsleep: false,
+            })
+          );
+        }
+      }
+    }
+  }
+
+  console.log("Destroying TranscribeClient... at time", new Date());
+
+  transcribeClient.destroy();
+
+  console.log("TranscribeClient destroyed... at time", new Date());
+
+  if (promiseResolverClientDestroy) {
+    promiseResolverClientDestroy(null);
+    promiseResolverClientDestroy = null;
   }
 };
 
 const onCloseConnection = async (connectionId: string) => {
+  if (timeoutId[connectionId]) clearTimeout(timeoutId[connectionId]);
+
+  onTimeout[connectionId](true);
   await canCloseConnection[connectionId];
 };
 
