@@ -10,12 +10,19 @@ type WebSocketManagerProps = {
     messages: AsyncGenerator<string>
   ) => void;
   onCloseConnection?: (connectionId: string) => void;
-  onSetup?: (connectionId: string, setup: string) => void;
+};
+
+type PromiseResolver<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void | null;
 };
 
 class WebSocketManager {
-  server: WebSocket.Server;
-  connections: { [key: string]: WebSocket } = {};
+  private server: WebSocket.Server;
+  private connections: { [key: string]: WebSocket } = {};
+  private setup: {
+    [key: string]: PromiseResolver<string>;
+  } = {};
 
   constructor({
     port = 8080,
@@ -28,9 +35,6 @@ class WebSocketManager {
     onCloseConnection = () => {
       return;
     },
-    onSetup = () => {
-      return;
-    },
   }: WebSocketManagerProps) {
     this.server = new WebSocket.Server({ port: port });
 
@@ -40,6 +44,12 @@ class WebSocketManager {
       const connectionId = uuidv4();
 
       const messages: string[] = [];
+
+      this.setup[connectionId] = {} as PromiseResolver<string>;
+
+      this.setup[connectionId].promise = new Promise((resolve) => {
+        this.setup[connectionId].resolve = resolve;
+      });
 
       this.storeConnection(connectionId, connection);
 
@@ -66,7 +76,10 @@ class WebSocketManager {
 
       connection.on("message", (message) => {
         if (JSON.parse(message.toString())["setup"]) {
-          onSetup(connectionId, JSON.parse(message.toString())["setup"]);
+          this.setup[connectionId].resolve(
+            JSON.parse(message.toString())["setup"]
+          );
+          return;
         }
         messages.push(message.toString());
         callback(connectionId, message.toString());
@@ -80,13 +93,23 @@ class WebSocketManager {
     console.log(`Server running on port ${port}`);
   }
 
+  getSetup = async (connectionId: string) => {
+    return await this.setup[connectionId].promise;
+  };
+
   closeConnection = (connectionId: string) => {
     if (this.connections[connectionId]) {
       this.connections[connectionId].close(1000, "Closing connection");
     }
   };
 
-  storeConnection = (connectionId: string, connection: WebSocket) => {
+  sendMessage = (connectionId: string, message: string) => {
+    if (this.connections[connectionId]) {
+      this.connections[connectionId].send(message);
+    }
+  };
+
+  private storeConnection = (connectionId: string, connection: WebSocket) => {
     console.log(`Received a new connection (ID: ` + connectionId + `)`);
     this.connections[connectionId] = connection;
     console.log(
@@ -94,18 +117,12 @@ class WebSocketManager {
     );
   };
 
-  deleteConnection = (connectionId: string) => {
+  private deleteConnection = (connectionId: string) => {
     console.log(`Connection closed (ID: ` + connectionId + `)`);
     delete this.connections[connectionId];
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
     );
-  };
-
-  sendMessage = (connectionId: string, message: string) => {
-    if (this.connections[connectionId]) {
-      this.connections[connectionId].send(message);
-    }
   };
 }
 
