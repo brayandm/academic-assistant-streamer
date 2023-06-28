@@ -9,7 +9,7 @@ services:
     ports:
       - ${OPENAIGPT_PORT}:${OPENAIGPT_PORT}
     networks:
-      - academic-assistant-local
+      - academic-assistant
     command: npx ts-node OpenAiGpt.ts
 
   awspolly-nodejs:
@@ -20,7 +20,7 @@ services:
     ports:
       - ${AWS_POLLY_PORT}:${AWS_POLLY_PORT}
     networks:
-      - academic-assistant-local
+      - academic-assistant
     command: npx ts-node AwsPolly.ts
 
   awstranscribe-nodejs:
@@ -31,10 +31,10 @@ services:
     ports:
       - ${AWS_TRANSCRIBE_PORT}:${AWS_TRANSCRIBE_PORT}
     networks:
-      - academic-assistant-local
+      - academic-assistant
     command: npx ts-node AwsTranscribe.ts
 
 networks:
-  academic-assistant-local:
+  academic-assistant:
     driver: bridge
     external: true
