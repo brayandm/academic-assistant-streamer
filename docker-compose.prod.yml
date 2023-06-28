@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     restart: always
-    volumes:
-      - .:/app
     ports:
       - ${OPENAIGPT_PORT}:${OPENAIGPT_PORT}
     networks:
@@ -19,8 +17,6 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     restart: always
-    volumes:
-      - .:/app
     ports:
       - ${AWS_POLLY_PORT}:${AWS_POLLY_PORT}
     networks:
@@ -32,8 +28,6 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     restart: always
-    volumes:
-      - .:/app
     ports:
       - ${AWS_TRANSCRIBE_PORT}:${AWS_TRANSCRIBE_PORT}
     networks:
