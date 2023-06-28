@@ -8,6 +8,10 @@ import { AwsCredentialIdentity } from "@aws-sdk/types";
 
 dotenv.config();
 
+const canCloseConnection: { [key: string]: Promise<void> } = {};
+
+const closeConnection: { [key: string]: (value: unknown) => void | null } = {};
+
 type InputStream = {
   AudioEvent: {
     AudioChunk: Uint8Array;
@@ -18,6 +22,10 @@ const asyncCallback = async (
   connectionId: string,
   messages: AsyncGenerator<string>
 ) => {
+  canCloseConnection[connectionId] = new Promise((resolve) => {
+    closeConnection[connectionId] = resolve;
+  });
+
   const stream: InputStream[] = [];
 
   let promiseResolver: (value: unknown) => void | null = null;
@@ -162,7 +170,16 @@ const asyncCallback = async (
     }
 
     webSocketManager.closeConnection(connectionId);
+
+    if (closeConnection[connectionId]) {
+      closeConnection[connectionId](null);
+      closeConnection[connectionId] = null;
+    }
   }
+};
+
+const onCloseConnection = async (connectionId: string) => {
+  await canCloseConnection[connectionId];
 };
 
 const webSocketManager = new WebSocketManager(
@@ -170,5 +187,6 @@ const webSocketManager = new WebSocketManager(
   () => {
     return;
   },
-  asyncCallback
+  asyncCallback,
+  onCloseConnection
 );
