@@ -32,8 +32,8 @@ class WebSocketManager {
 
       this.storeConnection(connectionId, connection);
 
-      connection.on("close", () => {
-        onCloseConnection(connectionId);
+      connection.on("close", async () => {
+        await onCloseConnection(connectionId);
         this.deleteConnection(connectionId);
       });
 
