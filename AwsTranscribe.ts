@@ -28,6 +28,11 @@ const asyncCallback = async (
 
   const stopTransmition = () => {
     stopSignal = true;
+    console.log("Sending stop Signal...");
+    if (promiseResolver) {
+      promiseResolver(null);
+      promiseResolver = null;
+    }
   };
 
   async function* getStream(): AsyncGenerator<InputStream> {
