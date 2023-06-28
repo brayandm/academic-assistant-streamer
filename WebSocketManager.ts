@@ -16,6 +16,9 @@ class WebSocketManager {
       messages: AsyncGenerator<string>
     ) => void = () => {
       return;
+    },
+    onCloseConnection: (connectionId: string) => void = () => {
+      return;
     }
   ) {
     this.server = new WebSocket.Server({ port: port });
@@ -30,6 +33,7 @@ class WebSocketManager {
       this.storeConnection(connectionId, connection);
 
       connection.on("close", () => {
+        onCloseConnection(connectionId);
         this.deleteConnection(connectionId);
       });
 
