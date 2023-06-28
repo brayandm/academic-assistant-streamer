@@ -53,4 +53,7 @@ const callback = async (connectionId: string, message: string) => {
   });
 };
 
-const webSocketManager = new WebSocketManager(8081, callback);
+const webSocketManager = new WebSocketManager({
+  port: 8081,
+  callback: callback,
+});

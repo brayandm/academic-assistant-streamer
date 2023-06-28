@@ -2,25 +2,36 @@ import * as dotenv from "dotenv";
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
 
+type WebSocketManagerProps = {
+  port?: number;
+  callback?: (connectionId: string, message: string) => void;
+  asyncCallback?: (
+    connectionId: string,
+    messages: AsyncGenerator<string>
+  ) => void;
+  onCloseConnection?: (connectionId: string) => void;
+  onSetup?: (connectionId: string, setup: string) => void;
+};
+
 class WebSocketManager {
   server: WebSocket.Server;
   connections: { [key: string]: WebSocket } = {};
 
-  constructor(
-    port: number,
-    callback: (connectionId: string, message: string) => void = () => {
+  constructor({
+    port = 8080,
+    callback = () => {
       return;
     },
-    asyncCallback: (
-      connectionId: string,
-      messages: AsyncGenerator<string>
-    ) => void = () => {
+    asyncCallback = () => {
       return;
     },
-    onCloseConnection: (connectionId: string) => void = () => {
+    onCloseConnection = () => {
       return;
-    }
-  ) {
+    },
+    onSetup = () => {
+      return;
+    },
+  }: WebSocketManagerProps) {
     this.server = new WebSocket.Server({ port: port });
 
     dotenv.config();
@@ -54,6 +65,9 @@ class WebSocketManager {
       asyncCallback(connectionId, getMessages());
 
       connection.on("message", (message) => {
+        if (JSON.parse(message.toString())["setup"]) {
+          onSetup(connectionId, JSON.parse(message.toString())["setup"]);
+        }
         messages.push(message.toString());
         callback(connectionId, message.toString());
         if (promiseResolver) {

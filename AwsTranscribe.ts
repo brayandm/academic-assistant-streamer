@@ -198,11 +198,8 @@ const onCloseConnection = async (connectionId: string) => {
   await canCloseConnection[connectionId];
 };
 
-const webSocketManager = new WebSocketManager(
-  8082,
-  () => {
-    return;
-  },
-  asyncCallback,
-  onCloseConnection
-);
+const webSocketManager = new WebSocketManager({
+  port: 8082,
+  asyncCallback: asyncCallback,
+  onCloseConnection: onCloseConnection,
+});
