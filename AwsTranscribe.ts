@@ -22,8 +22,18 @@ const asyncCallback = async (
 
   let promiseResolver: (value: unknown) => void | null = null;
 
+  let stopSignal = false;
+
+  let promiseResolverClientDestroy: (value: unknown) => void | null = null;
+
+  const stopTransmition = () => {
+    stopSignal = true;
+  };
+
   async function* getStream(): AsyncGenerator<InputStream> {
     while (true) {
+      if (stopSignal) break;
+
       if (stream.length > 0) {
         yield stream.shift();
       } else {
@@ -108,8 +118,23 @@ const asyncCallback = async (
     }
   }
 
-  function onTimeout(isAsleep: boolean) {
-    transcribeClient.destroy();
+  console.log("Destroying TranscribeClient... at time", new Date());
+
+  transcribeClient.destroy();
+
+  if (promiseResolverClientDestroy) {
+    promiseResolverClientDestroy(null);
+    promiseResolverClientDestroy = null;
+  }
+
+  async function onTimeout(isAsleep: boolean) {
+    stopTransmition();
+
+    console.log("Waiting for client to be destroyed...");
+
+    await new Promise((resolve) => {
+      promiseResolverClientDestroy = resolve;
+    });
 
     console.log("Closing connection... at time", new Date());
 
