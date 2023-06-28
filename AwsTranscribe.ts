@@ -10,6 +10,8 @@ dotenv.config();
 
 const canCloseConnection: { [key: string]: Promise<void> } = {};
 
+const dontCallOnTimeoutOnClose: { [key: string]: boolean } = {};
+
 const closeConnection: { [key: string]: (value: unknown) => void | null } = {};
 
 const timeoutId: { [key: string]: NodeJS.Timeout | undefined } = {};
@@ -118,6 +120,8 @@ const asyncCallback = async (
       );
     }
 
+    dontCallOnTimeoutOnClose[connectionId] = true;
+
     webSocketManager.closeConnection(connectionId);
 
     if (closeConnection[connectionId]) {
@@ -183,9 +187,14 @@ const asyncCallback = async (
 };
 
 const onCloseConnection = async (connectionId: string) => {
-  if (timeoutId[connectionId]) clearTimeout(timeoutId[connectionId]);
+  if (!dontCallOnTimeoutOnClose[connectionId]) {
+    console.log("Client close connection... at time", new Date());
+    if (timeoutId[connectionId]) clearTimeout(timeoutId[connectionId]);
+    onTimeout[connectionId](true);
+  } else {
+    console.log("Server close connection... at time", new Date());
+  }
 
-  onTimeout[connectionId](true);
   await canCloseConnection[connectionId];
 };
 
