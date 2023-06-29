@@ -134,7 +134,7 @@ const asyncCallback = async (
     }
   };
 
-  const TIME_OUT = 3000;
+  const TIME_OUT = 1500;
   const TIME_TO_SLEEP = 5000;
   const SAMPLE_RATE = 44100;
 
