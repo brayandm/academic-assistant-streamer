@@ -6,6 +6,11 @@ import {
 } from "@aws-sdk/client-transcribe-streaming";
 import { AwsCredentialIdentity } from "@aws-sdk/types";
 
+import wav from "wav";
+import Stream from "stream";
+
+import { exec } from "child_process";
+
 dotenv.config();
 
 const canCloseConnection: { [key: string]: Promise<void> } = {};
@@ -53,11 +58,14 @@ const asyncCallback = async (
     }
   };
 
+  const chunks: Uint8Array[] = [];
+
   async function* getStream(): AsyncGenerator<InputStream> {
     while (true) {
       if (stopSignal) break;
 
       if (stream.length > 0) {
+        chunks.push(stream[0].AudioEvent.AudioChunk);
         yield stream.shift();
       } else {
         await new Promise((resolve) => {
@@ -177,6 +185,33 @@ const asyncCallback = async (
       }
     }
   }
+
+  const outputFileStream = new wav.FileWriter(
+    `recordings/${connectionId}.wav`,
+    {
+      sampleRate: SAMPLE_RATE,
+      channels: 1,
+    }
+  );
+
+  const uint8Array: Uint8Array = new Uint8Array(
+    chunks.length * chunks[0].length
+  );
+
+  for (let i = 0; i < chunks.length; i++) {
+    uint8Array.set(chunks[i], i * chunks[0].length);
+  }
+
+  new Stream.Readable({
+    read() {
+      this.push(Buffer.from(uint8Array));
+      this.push(null);
+    },
+  }).pipe(outputFileStream);
+
+  exec(
+    `ffmpeg -i "recordings/${connectionId}.wav" "recordings/${connectionId}.mp3" && rm "recordings/${connectionId}.wav"`
+  );
 
   console.log("Destroying TranscribeClient... at time", new Date());
 
