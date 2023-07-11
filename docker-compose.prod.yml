@@ -10,7 +10,7 @@ services:
       - ${OPENAIGPT_PORT}:${OPENAIGPT_PORT}
     networks:
       - academic-assistant
-    command: npx ts-node OpenAiGpt.ts
+    command: npx ts-node src/OpenAiGpt.ts
 
   awspolly-nodejs:
     build:
@@ -21,7 +21,7 @@ services:
       - ${AWS_POLLY_PORT}:${AWS_POLLY_PORT}
     networks:
       - academic-assistant
-    command: npx ts-node AwsPolly.ts
+    command: npx ts-node src/AwsPolly.ts
 
   awstranscribe-nodejs:
     build:
@@ -32,7 +32,7 @@ services:
       - ${AWS_TRANSCRIBE_PORT}:${AWS_TRANSCRIBE_PORT}
     networks:
       - academic-assistant
-    command: npx ts-node AwsTranscribe.ts
+    command: npx ts-node src/AwsTranscribe.ts
 
 networks:
   academic-assistant:
