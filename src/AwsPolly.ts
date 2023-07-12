@@ -3,6 +3,7 @@ import WebSocketManager from "./WebSocketManager";
 import { AwsCredentialIdentity } from "@aws-sdk/types";
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import axios from "axios";
+import { uuid } from "uuidv4";
 
 dotenv.config();
 
@@ -16,6 +17,8 @@ const callback = async (connectionId: string, message: string) => {
   const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
     token: string;
   };
+
+  let user_id: number;
 
   try {
     const response = await axios.post(
@@ -31,12 +34,15 @@ const callback = async (connectionId: string, message: string) => {
 
     if (
       response.status !== 200 ||
-      response.data["message"] !== "Access granted"
+      response.data["message"] !== "Access granted" ||
+      response.data["user_id"] === undefined
     ) {
       console.log("Access denied");
       webSocketManager.closeConnection(connectionId);
       return;
     }
+
+    user_id = response.data["user_id"];
   } catch (e) {
     console.log("Error while requesting access control");
     webSocketManager.closeConnection(connectionId);
@@ -79,6 +85,36 @@ const callback = async (connectionId: string, message: string) => {
           data: Array.from(await data.AudioStream.transformToByteArray()),
         })
       );
+
+      try {
+        await axios.post(
+          process.env.BACKEND_URL + "/api/v1/streamer/task/create",
+          {
+            task_id: uuid(),
+            task_type: "TEXT_TO_SPEECH_NEURAL",
+            task_status: "SUCCESS",
+            user_id: user_id,
+            input_type: "TEXT",
+            input: `<speak>${input.text}</speak>`,
+            result_type: "NULL",
+            result: "empty",
+            ai_models: JSON.stringify([
+              {
+                name: "aws-polly",
+                option: "neural-voice",
+                usage_type: "characters",
+                usage: `<speak>${input.text}</speak>`.length,
+              },
+            ]),
+          },
+          {
+            headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+          }
+        );
+        console.log("Task result sent");
+      } catch (e) {
+        console.log("Error while sending task result");
+      }
     }
     webSocketManager.closeConnection(connectionId);
   });
