@@ -22,6 +22,7 @@
     "@aws-sdk/client-polly": "^3.359.0",
     "@aws-sdk/client-transcribe-streaming": "^3.359.0",
     "@aws-sdk/types": "^3.357.0",
+    "axios": "^1.4.0",
     "child_process": "^1.0.2",
     "dotenv": "^16.3.1",
     "http": "^0.0.1-security",
