@@ -2,6 +2,7 @@ import * as dotenv from "dotenv";
 import WebSocketManager from "./WebSocketManager";
 import { AwsCredentialIdentity } from "@aws-sdk/types";
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
+import axios from "axios";
 
 dotenv.config();
 
@@ -12,6 +13,36 @@ type Input = {
 };
 
 const callback = async (connectionId: string, message: string) => {
+  const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
+    token: string;
+  };
+
+  try {
+    const response = await axios.post(
+      process.env.BACKEND_URL + "/api/v1/streamer/task/access-control",
+      {
+        token: setup.token,
+        task_type: "TEXT_TO_SPEECH_NEURAL",
+      },
+      {
+        headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+      }
+    );
+
+    if (
+      response.status !== 200 ||
+      response.data["message"] !== "Access granted"
+    ) {
+      console.log("Access denied");
+      webSocketManager.closeConnection(connectionId);
+      return;
+    }
+  } catch (e) {
+    console.log("Error while requesting access control");
+    webSocketManager.closeConnection(connectionId);
+    return;
+  }
+
   console.log("Message received:", JSON.parse(message));
 
   const input = JSON.parse(message) as Input;
