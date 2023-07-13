@@ -3,7 +3,7 @@ import WebSocketManager from "./WebSocketManager";
 import { AwsCredentialIdentity } from "@aws-sdk/types";
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import axios from "axios";
-import { uuid } from "uuidv4";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 
@@ -90,7 +90,7 @@ const callback = async (connectionId: string, message: string) => {
         await axios.post(
           process.env.BACKEND_URL + "/api/v1/streamer/task/create",
           {
-            task_id: uuid(),
+            task_id: uuidv4(),
             task_type: "TEXT_TO_SPEECH_NEURAL",
             task_status: "SUCCESS",
             user_id: user_id,
