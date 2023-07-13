@@ -304,7 +304,7 @@ const asyncCallback = async (
         input_type: "NULL",
         input: "empty",
         result_type: "TEXT",
-        result: transcription,
+        result: transcription ? transcription : ".",
         ai_models: JSON.stringify([
           {
             name: "aws-transcribe",
