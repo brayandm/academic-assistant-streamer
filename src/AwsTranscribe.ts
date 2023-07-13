@@ -5,13 +5,11 @@ import {
   TranscribeStreamingClient,
 } from "@aws-sdk/client-transcribe-streaming";
 import { AwsCredentialIdentity } from "@aws-sdk/types";
-
 import wav from "wav";
 import Stream from "stream";
-
 import { exec } from "child_process";
-
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 
@@ -128,12 +126,15 @@ const asyncCallback = async (
 
   const chunks: Uint8Array[] = [];
 
+  let seconds = 0;
+
   async function* getStream(): AsyncGenerator<InputStream> {
     while (true) {
       if (stopSignal) break;
 
       if (stream.length > 0) {
         chunks.push(stream[0].AudioEvent.AudioChunk);
+        seconds += stream[0].AudioEvent.AudioChunk.length / 44100 / 2;
         yield stream.shift();
       } else {
         await new Promise((resolve) => {
@@ -228,6 +229,8 @@ const asyncCallback = async (
   console.log("Sending data to AWS Transcribe... at time", new Date());
   const data = await transcribeClient.send(command);
 
+  let transcription = "";
+
   for await (const event of data?.TranscriptResultStream || []) {
     for (const result of event.TranscriptEvent?.Transcript?.Results || []) {
       if (result.IsPartial === false) {
@@ -242,6 +245,9 @@ const asyncCallback = async (
           timeoutId[connectionId] = setTimeout(() => {
             onTimeout[connectionId](false);
           }, TIME_OUT);
+
+          transcription += data[i].Content + " ";
+
           webSocketManager.sendMessage(
             connectionId,
             JSON.stringify({
@@ -286,6 +292,36 @@ const asyncCallback = async (
   transcribeClient.destroy();
 
   console.log("TranscribeClient destroyed... at time", new Date());
+
+  try {
+    await axios.post(
+      process.env.BACKEND_URL + "/api/v1/streamer/task/create",
+      {
+        task_id: uuidv4(),
+        task_type: "SPEECH_TO_TEXT",
+        task_status: "SUCCESS",
+        user_id: user_id,
+        input_type: "NULL",
+        input: "empty",
+        result_type: "TEXT",
+        result: transcription,
+        ai_models: JSON.stringify([
+          {
+            name: "aws-transcribe",
+            option: "speech-to-text",
+            usage_type: "seconds",
+            usage: Math.ceil(seconds),
+          },
+        ]),
+      },
+      {
+        headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+      }
+    );
+    console.log("Task result sent");
+  } catch (e) {
+    console.log("Error while sending task result");
+  }
 
   if (promiseResolverClientDestroy) {
     promiseResolverClientDestroy(null);
