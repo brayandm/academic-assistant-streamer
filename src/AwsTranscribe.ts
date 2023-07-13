@@ -260,13 +260,12 @@ const asyncCallback = async (
     }
   }
 
-  const outputFileStream = new wav.FileWriter(
-    `recordings/${connectionId}.wav`,
-    {
-      sampleRate: SAMPLE_RATE,
-      channels: 1,
-    }
-  );
+  const task_id = uuidv4();
+
+  const outputFileStream = new wav.FileWriter(`recordings/${task_id}.wav`, {
+    sampleRate: SAMPLE_RATE,
+    channels: 1,
+  });
 
   const uint8Array: Uint8Array = new Uint8Array(
     chunks.length * chunks[0].length
@@ -284,7 +283,7 @@ const asyncCallback = async (
   }).pipe(outputFileStream);
 
   exec(
-    `ffmpeg -i "recordings/${connectionId}.wav" "recordings/${connectionId}.mp3" && rm "recordings/${connectionId}.wav"`
+    `ffmpeg -i "recordings/${task_id}.wav" "recordings/${task_id}.mp3" && rm "recordings/${task_id}.wav"`
   );
 
   console.log("Destroying TranscribeClient... at time", new Date());
@@ -297,7 +296,7 @@ const asyncCallback = async (
     await axios.post(
       process.env.BACKEND_URL + "/api/v1/streamer/task/create",
       {
-        task_id: uuidv4(),
+        task_id: task_id,
         task_type: "SPEECH_TO_TEXT",
         task_status: "SUCCESS",
         user_id: user_id,
