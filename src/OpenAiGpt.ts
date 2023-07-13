@@ -2,6 +2,7 @@ import * as dotenv from "dotenv";
 import WebSocketManager from "./WebSocketManager";
 import axios from "axios";
 import { uuid } from "uuidv4";
+import GPT3Tokenizer from "gpt3-tokenizer";
 
 dotenv.config();
 
@@ -9,6 +10,8 @@ const callback = async (connectionId: string, message: string) => {
   const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
     token: string;
   };
+
+  const tokenizer = new GPT3Tokenizer({ type: "gpt3" });
 
   let user_id: number;
 
@@ -67,8 +70,6 @@ const callback = async (connectionId: string, message: string) => {
   while (true) {
     // eslint-disable-next-line no-await-in-loop
     const { value, done } = await reader.read();
-    console.log(done);
-    console.log(value);
     if (done) break;
     let dataDone = false;
     const arr = value.split("\n");
@@ -102,7 +103,10 @@ const callback = async (connectionId: string, message: string) => {
     }
   }
 
-  console.log(response);
+  const encodedInput: { bpe: number[] } = tokenizer.encode(
+    JSON.stringify(input)
+  );
+  const encodedOutput: { bpe: number[] } = tokenizer.encode(output);
 
   try {
     await axios.post(
@@ -121,7 +125,7 @@ const callback = async (connectionId: string, message: string) => {
             name: "gpt-3.5-turbo",
             option: "chat-completion",
             usage_type: "tokens",
-            usage: 1,
+            usage: encodedInput.bpe.length + encodedOutput.bpe.length,
           },
         ]),
       },
