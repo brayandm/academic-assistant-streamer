@@ -11,6 +11,8 @@ import Stream from "stream";
 
 import { exec } from "child_process";
 
+import axios from "axios";
+
 dotenv.config();
 
 const canCloseConnection: { [key: string]: Promise<void> } = {};
@@ -34,8 +36,74 @@ const asyncCallback = async (
   messages: AsyncGenerator<string>
 ) => {
   const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
+    token: string;
     language: string;
   };
+
+  let user_id: number;
+
+  try {
+    const response = await axios.post(
+      process.env.BACKEND_URL + "/api/v1/streamer/task/access-control",
+      {
+        token: setup.token,
+        task_type: "SPEECH_TO_TEXT",
+      },
+      {
+        headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+      }
+    );
+
+    if (
+      response.status !== 200 ||
+      response.data["message"] !== "Access granted" ||
+      response.data["user_id"] === undefined
+    ) {
+      console.log("Access denied");
+
+      webSocketManager.sendMessage(
+        connectionId,
+        JSON.stringify({
+          data: null,
+          isAsleep: true,
+        })
+      );
+
+      dontCallOnTimeoutOnClose[connectionId] = true;
+
+      webSocketManager.closeConnection(connectionId);
+
+      if (closeConnection[connectionId]) {
+        closeConnection[connectionId](null);
+        closeConnection[connectionId] = null;
+      }
+
+      return;
+    }
+
+    user_id = response.data["user_id"];
+  } catch (e) {
+    console.log("Error while requesting access control");
+
+    webSocketManager.sendMessage(
+      connectionId,
+      JSON.stringify({
+        data: null,
+        isAsleep: true,
+      })
+    );
+
+    dontCallOnTimeoutOnClose[connectionId] = true;
+
+    webSocketManager.closeConnection(connectionId);
+
+    if (closeConnection[connectionId]) {
+      closeConnection[connectionId](null);
+      closeConnection[connectionId] = null;
+    }
+
+    return;
+  }
 
   canCloseConnection[connectionId] = new Promise((resolve) => {
     closeConnection[connectionId] = resolve;
