@@ -1,12 +1,51 @@
 import * as dotenv from "dotenv";
 import WebSocketManager from "./WebSocketManager";
+import axios from "axios";
+import { uuid } from "uuidv4";
 
 dotenv.config();
 
 const callback = async (connectionId: string, message: string) => {
+  const setup = JSON.parse(await webSocketManager.getSetup(connectionId)) as {
+    token: string;
+  };
+
+  let user_id: number;
+
+  try {
+    const response = await axios.post(
+      process.env.BACKEND_URL + "/api/v1/streamer/task/access-control",
+      {
+        token: setup.token,
+        task_type: "CHAT_COMPLETION",
+      },
+      {
+        headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+      }
+    );
+
+    if (
+      response.status !== 200 ||
+      response.data["message"] !== "Access granted" ||
+      response.data["user_id"] === undefined
+    ) {
+      console.log("Access denied");
+      webSocketManager.closeConnection(connectionId);
+      return;
+    }
+
+    user_id = response.data["user_id"];
+  } catch (e) {
+    console.log("Error while requesting access control");
+    webSocketManager.closeConnection(connectionId);
+    return;
+  }
+
   console.log("Message received:", JSON.parse(message));
 
   const input = JSON.parse(message);
+
+  let output = "";
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -28,6 +67,8 @@ const callback = async (connectionId: string, message: string) => {
   while (true) {
     // eslint-disable-next-line no-await-in-loop
     const { value, done } = await reader.read();
+    console.log(done);
+    console.log(value);
     if (done) break;
     let dataDone = false;
     const arr = value.split("\n");
@@ -40,6 +81,8 @@ const callback = async (connectionId: string, message: string) => {
       }
       const json = JSON.parse(data.substring(6));
       if (json.choices[0].delta.content) {
+        output += json.choices[0].delta.content;
+
         webSocketManager.sendMessage(
           connectionId,
           JSON.stringify({
@@ -55,10 +98,43 @@ const callback = async (connectionId: string, message: string) => {
           data: null,
         })
       );
-      webSocketManager.closeConnection(connectionId);
       break;
     }
   }
+
+  console.log(response);
+
+  try {
+    await axios.post(
+      process.env.BACKEND_URL + "/api/v1/streamer/task/create",
+      {
+        task_id: uuid(),
+        task_type: "CHAT_COMPLETION",
+        task_status: "SUCCESS",
+        user_id: user_id,
+        input_type: "JSON",
+        input: JSON.stringify(input),
+        result_type: "TEXT",
+        result: output,
+        ai_models: JSON.stringify([
+          {
+            name: "gpt-3.5-turbo",
+            option: "chat-completion",
+            usage_type: "tokens",
+            usage: 1,
+          },
+        ]),
+      },
+      {
+        headers: { "X-API-Key": process.env.STREAMER_API_TOKEN },
+      }
+    );
+    console.log("Task result sent");
+  } catch (e) {
+    console.log("Error while sending task result");
+  }
+
+  webSocketManager.closeConnection(connectionId);
 };
 
 const webSocketManager = new WebSocketManager({
