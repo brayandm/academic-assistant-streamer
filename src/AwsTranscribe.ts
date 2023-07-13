@@ -213,7 +213,7 @@ const asyncCallback = async (
 
   const TIME_OUT = 2000;
   const TIME_TO_SLEEP = 5000;
-  const SAMPLE_RATE = 44100;
+  const SAMPLE_RATE = 48000;
 
   timeoutId[connectionId] = setTimeout(() => {
     onTimeout[connectionId](true);
