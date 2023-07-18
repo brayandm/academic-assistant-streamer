@@ -19,6 +19,7 @@ const callback = async (connectionId: string, message: string) => {
   };
 
   let user_id: number;
+  let quota: number;
 
   try {
     const response = await axios.post(
@@ -43,6 +44,7 @@ const callback = async (connectionId: string, message: string) => {
     }
 
     user_id = response.data["user_id"];
+    quota = response.data["quota"]["aws-polly"];
   } catch (e) {
     console.log("Error while requesting access control");
     webSocketManager.closeConnection(connectionId);
@@ -53,6 +55,13 @@ const callback = async (connectionId: string, message: string) => {
 
   const input = JSON.parse(message) as Input;
 
+  const textToSpeech = `<speak>${input.text}</speak>`;
+
+  if (quota < textToSpeech.length) {
+    console.log("Quota exceeded");
+    webSocketManager.closeConnection(connectionId);
+  }
+
   const awsCredentials: AwsCredentialIdentity = {
     accessKeyId: process.env.AWS_ACCESS_KEY || "",
     secretAccessKey: process.env.AWS_SECRET_KEY || "",
@@ -62,14 +71,16 @@ const callback = async (connectionId: string, message: string) => {
     region: process.env.AWS_REGION || "",
     credentials: awsCredentials,
   });
+
   const params = {
     OutputFormat: "mp3",
     Engine: "neural",
     LanguageCode: input.languageCode,
-    Text: `<speak>${input.text}</speak>`,
+    Text: textToSpeech,
     VoiceId: input.voiceId,
     TextType: "ssml",
   };
+
   polly.send(new SynthesizeSpeechCommand(params), async (error, data) => {
     if (error) {
       webSocketManager.sendMessage(
