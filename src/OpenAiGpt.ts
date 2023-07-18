@@ -14,6 +14,7 @@ const callback = async (connectionId: string, message: string) => {
   const tokenizer = new GPT3Tokenizer({ type: "gpt3" });
 
   let user_id: number;
+  let quota: number;
 
   try {
     const response = await axios.post(
@@ -38,6 +39,8 @@ const callback = async (connectionId: string, message: string) => {
     }
 
     user_id = response.data["user_id"];
+    quota = response.data["quota"]["gpt-3.5-turbo"];
+    webSocketManager.setUserConnection(String(user_id), connectionId);
   } catch (e) {
     console.log("Error while requesting access control");
     webSocketManager.closeConnection(connectionId);
@@ -47,6 +50,15 @@ const callback = async (connectionId: string, message: string) => {
   console.log("Message received:", JSON.parse(message));
 
   const input = JSON.parse(message);
+
+  const encodedInput: { bpe: number[] } = tokenizer.encode(
+    JSON.stringify(input)
+  );
+
+  if (quota < encodedInput.bpe.length) {
+    console.log("Quota exceeded");
+    webSocketManager.closeConnection(connectionId);
+  }
 
   let output = "";
 
@@ -103,9 +115,6 @@ const callback = async (connectionId: string, message: string) => {
     }
   }
 
-  const encodedInput: { bpe: number[] } = tokenizer.encode(
-    JSON.stringify(input)
-  );
   const encodedOutput: { bpe: number[] } = tokenizer.encode(output);
 
   try {
