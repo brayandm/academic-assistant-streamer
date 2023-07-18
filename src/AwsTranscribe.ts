@@ -381,6 +381,12 @@ const onCloseConnection = async (connectionId: string) => {
   }
 
   await canCloseConnection[connectionId];
+
+  delete canCloseConnection[connectionId];
+  delete dontCallOnTimeoutOnClose[connectionId];
+  delete closeConnection[connectionId];
+  delete timeoutId[connectionId];
+  delete onTimeout[connectionId];
 };
 
 const webSocketManager = new WebSocketManager({
