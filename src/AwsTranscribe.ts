@@ -39,6 +39,7 @@ const asyncCallback = async (
   };
 
   let user_id: number;
+  let quota: number;
 
   try {
     const response = await axios.post(
@@ -80,6 +81,30 @@ const asyncCallback = async (
     }
 
     user_id = response.data["user_id"];
+    quota = response.data["quota"]["aws-transcribe"];
+
+    if (!webSocketManager.setUserConnection(String(user_id), connectionId)) {
+      console.log("Connection already exists");
+
+      webSocketManager.sendMessage(
+        connectionId,
+        JSON.stringify({
+          data: null,
+          isAsleep: true,
+        })
+      );
+
+      dontCallOnTimeoutOnClose[connectionId] = true;
+
+      webSocketManager.closeConnection(connectionId);
+
+      if (closeConnection[connectionId]) {
+        closeConnection[connectionId](null);
+        closeConnection[connectionId] = null;
+      }
+
+      return;
+    }
   } catch (e) {
     console.log("Error while requesting access control");
 
@@ -114,63 +139,22 @@ const asyncCallback = async (
   let stopSignal = false;
 
   let promiseResolverClientDestroy: (value: unknown) => void | null = null;
+  let promiseQuotaExcededResolver: (value: unknown) => void | null = null;
 
   const stopTransmition = () => {
     stopSignal = true;
+
+    if (promiseQuotaExcededResolver) {
+      promiseQuotaExcededResolver(null);
+      promiseQuotaExcededResolver = null;
+    }
+
     console.log("Sending stop Signal...");
     if (promiseResolver) {
       promiseResolver(null);
       promiseResolver = null;
     }
   };
-
-  const chunks: Uint8Array[] = [];
-
-  let seconds = 0;
-
-  async function* getStream(): AsyncGenerator<InputStream> {
-    while (true) {
-      if (stopSignal) break;
-
-      if (stream.length > 0) {
-        chunks.push(stream[0].AudioEvent.AudioChunk);
-        seconds += stream[0].AudioEvent.AudioChunk.length / 44100 / 2;
-        yield stream.shift();
-      } else {
-        await new Promise((resolve) => {
-          promiseResolver = resolve;
-        });
-      }
-    }
-  }
-
-  const transformMessages = async () => {
-    for await (const message of messages) {
-      stream.push({
-        AudioEvent: {
-          AudioChunk: new Uint8Array(
-            JSON.parse(message)["AudioEvent"]["AudioChunk"]
-          ),
-        },
-      });
-      if (promiseResolver) {
-        promiseResolver(null);
-        promiseResolver = null;
-      }
-    }
-  };
-
-  transformMessages();
-
-  const awsCredentials: AwsCredentialIdentity = {
-    accessKeyId: process.env.AWS_ACCESS_KEY || "",
-    secretAccessKey: process.env.AWS_SECRET_KEY || "",
-  };
-
-  const transcribeClient = new TranscribeStreamingClient({
-    region: process.env.AWS_REGION || "",
-    credentials: awsCredentials,
-  });
 
   onTimeout[connectionId] = async (isAsleep: boolean) => {
     stopTransmition();
@@ -210,6 +194,65 @@ const asyncCallback = async (
       closeConnection[connectionId] = null;
     }
   };
+
+  const chunks: Uint8Array[] = [];
+
+  let seconds = 0;
+
+  async function* getStream(): AsyncGenerator<InputStream> {
+    while (true) {
+      if (stopSignal) break;
+
+      if (stream.length > 0) {
+        chunks.push(stream[0].AudioEvent.AudioChunk);
+        seconds += stream[0].AudioEvent.AudioChunk.length / 44100 / 2;
+
+        if (quota < seconds) {
+          console.log("Quota exceded");
+          if (timeoutId[connectionId]) clearTimeout(timeoutId[connectionId]);
+          const promise = new Promise((resolve) => {
+            promiseQuotaExcededResolver = resolve;
+          });
+          onTimeout[connectionId](true);
+          await promise;
+          break;
+        }
+        yield stream.shift();
+      } else {
+        await new Promise((resolve) => {
+          promiseResolver = resolve;
+        });
+      }
+    }
+  }
+
+  const transformMessages = async () => {
+    for await (const message of messages) {
+      stream.push({
+        AudioEvent: {
+          AudioChunk: new Uint8Array(
+            JSON.parse(message)["AudioEvent"]["AudioChunk"]
+          ),
+        },
+      });
+      if (promiseResolver) {
+        promiseResolver(null);
+        promiseResolver = null;
+      }
+    }
+  };
+
+  transformMessages();
+
+  const awsCredentials: AwsCredentialIdentity = {
+    accessKeyId: process.env.AWS_ACCESS_KEY || "",
+    secretAccessKey: process.env.AWS_SECRET_KEY || "",
+  };
+
+  const transcribeClient = new TranscribeStreamingClient({
+    region: process.env.AWS_REGION || "",
+    credentials: awsCredentials,
+  });
 
   const TIME_OUT = 2000;
   const TIME_TO_SLEEP = 5000;
