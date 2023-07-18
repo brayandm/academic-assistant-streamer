@@ -45,7 +45,11 @@ const callback = async (connectionId: string, message: string) => {
 
     user_id = response.data["user_id"];
     quota = response.data["quota"]["aws-polly"];
-    webSocketManager.setUserConnection(String(user_id), connectionId);
+    if (!webSocketManager.setUserConnection(String(user_id), connectionId)) {
+      console.log("Connection already exists");
+      webSocketManager.closeConnection(connectionId);
+      return;
+    }
   } catch (e) {
     console.log("Error while requesting access control");
     webSocketManager.closeConnection(connectionId);

@@ -101,9 +101,11 @@ class WebSocketManager {
         "Closing connection, because user already has a connection active"
       );
       this.connections[connectionId].close(1000, "Closing connection");
+      return false;
     } else {
       this.userConection[userId] = connectionId;
       this.connectionUser[connectionId] = userId;
+      return true;
     }
   };
 
