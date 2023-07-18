@@ -20,6 +20,8 @@ type PromiseResolver<T> = {
 class WebSocketManager {
   private server: WebSocket.Server;
   private connections: { [key: string]: WebSocket } = {};
+  private connectionUser: { [key: string]: string } = {};
+  private userConection: { [key: string]: string } = {};
   private setup: {
     [key: string]: PromiseResolver<string>;
   } = {};
@@ -93,6 +95,19 @@ class WebSocketManager {
     console.log(`Server running on port ${port}`);
   }
 
+  setUserConnection = async (userId: string, connectionId: string) => {
+    if (this.userConection[userId]) {
+      console.log("Closing connection, because user made a new connection");
+      await this.connections[this.userConection[userId]].close(
+        1000,
+        "Closing connection"
+      );
+    }
+
+    this.userConection[userId] = connectionId;
+    this.connectionUser[connectionId] = userId;
+  };
+
   getSetup = async (connectionId: string) => {
     return await this.setup[connectionId].promise;
   };
@@ -119,7 +134,12 @@ class WebSocketManager {
 
   private deleteConnection = (connectionId: string) => {
     console.log(`Connection closed (ID: ` + connectionId + `)`);
+
     delete this.connections[connectionId];
+    delete this.setup[connectionId];
+    delete this.userConection[this.connectionUser[connectionId]];
+    delete this.connectionUser[connectionId];
+
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
     );
