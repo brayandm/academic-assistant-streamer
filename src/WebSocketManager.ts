@@ -97,15 +97,14 @@ class WebSocketManager {
 
   setUserConnection = async (userId: string, connectionId: string) => {
     if (this.userConection[userId]) {
-      console.log("Closing connection, because user made a new connection");
-      await this.connections[this.userConection[userId]].close(
-        1000,
-        "Closing connection"
+      console.log(
+        "Closing connection, because user already has a connection active"
       );
+      this.connections[connectionId].close(1000, "Closing connection");
+    } else {
+      this.userConection[userId] = connectionId;
+      this.connectionUser[connectionId] = userId;
     }
-
-    this.userConection[userId] = connectionId;
-    this.connectionUser[connectionId] = userId;
   };
 
   getSetup = async (connectionId: string) => {
@@ -137,8 +136,10 @@ class WebSocketManager {
 
     delete this.connections[connectionId];
     delete this.setup[connectionId];
-    delete this.userConection[this.connectionUser[connectionId]];
-    delete this.connectionUser[connectionId];
+    if (this.connectionUser[connectionId]) {
+      delete this.userConection[this.connectionUser[connectionId]];
+      delete this.connectionUser[connectionId];
+    }
 
     console.log(
       `Total connections open: ` + Object.keys(this.connections).length
