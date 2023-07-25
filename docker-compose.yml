@@ -12,7 +12,7 @@ services:
       - ${OPENAIGPT_PORT}:${OPENAIGPT_PORT}
     networks:
       - academic-assistant-local
-    command: nodemon OpenAiGpt.ts
+    command: nodemon src/OpenAiGpt.ts
 
   awspolly-nodejs:
     build:
@@ -25,7 +25,7 @@ services:
       - ${AWS_POLLY_PORT}:${AWS_POLLY_PORT}
     networks:
       - academic-assistant-local
-    command: nodemon AwsPolly.ts
+    command: nodemon src/AwsPolly.ts
 
   awstranscribe-nodejs:
     build:
@@ -38,7 +38,7 @@ services:
       - ${AWS_TRANSCRIBE_PORT}:${AWS_TRANSCRIBE_PORT}
     networks:
       - academic-assistant-local
-    command: nodemon AwsTranscribe.ts
+    command: nodemon src/AwsTranscribe.ts
 
 networks:
   academic-assistant-local:
